@@ -1,0 +1,19 @@
+{
+    "title": "Meteoblue Weather",
+    "description": "Integration with Meteoblue to provide weather data.",
+    "fields": {
+      "api_key": {
+        "name": "API Key",
+        "description": "Your API key from Meteoblue."
+      },
+      "latitude": {
+        "name": "Latitude",
+        "description": "Geographic latitude of the location."
+      },
+      "longitude": {
+        "name": "Longitude",
+        "description": "Geographic longitude of the location."
+      }
+    }
+  }
+  

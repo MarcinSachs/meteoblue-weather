@@ -4,7 +4,7 @@
       "step": {
         "user": {
           "title": "Konfiguracja Meteoblue",
-          "description": "Wprowadź klucz API oraz współrzędne geograficzne.",
+          "description": "Wprowadź klucz API oraz współrzędne lokalizacji.",
           "data": {
             "api_key": "Klucz API",
             "latitude": "Szerokość geograficzna",
@@ -15,10 +15,11 @@
       "error": {
         "cannot_connect": "Nie udało się połączyć z API Meteoblue.",
         "invalid_api_key": "Nieprawidłowy klucz API.",
-        "unknown": "Nieznany błąd."
+        "unknown": "Nieznany błąd"
       },
       "abort": {
         "already_configured": "Meteoblue jest już skonfigurowane dla tej lokalizacji."
       }
     }
   }
+  
