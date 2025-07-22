@@ -1,0 +1,9 @@
+{
+    "name": "Meteoblue Weather",
+    "content_in_root": false,
+    "domains": ["weather"],
+    "country": "global",
+    "homeassistant": "2022.0.0",
+    "persistent_directory": "custom_components/meteoblue",
+    "render_readme": true
+  }
