@@ -1,89 +1,61 @@
-from homeassistant.components.weather import WeatherEntity
-from homeassistant.const import TEMP_CELSIUS, LENGTH_KILOMETERS, SPEED_KILOMETERS_PER_HOUR
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
+from homeassistant.components.weather import WeatherEntity, WeatherEntityFeature
+from homeassistant.components.weather.const import (
+    UnitOfTemperature, UnitOfSpeed, UnitOfLength, WeatherCondition
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-import aiohttp
-import async_timeout
-from datetime import timedelta, datetime
-
-from .const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE, DOMAIN
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from .const import DOMAIN
+from .coordinator import MeteoblueDataUpdateCoordinator
 
 CONDITION_MAP = {
-    "clear": "sunny",
-    "partly": "partlycloudy",
-    "cloudy": "cloudy",
-    "rain": "rainy",
-    "snow": "snowy",
-    "storm": "lightning",
-    "fog": "fog",
+    "clear": WeatherCondition.SUNNY,
+    "partly": WeatherCondition.PARTLYCLOUDY,
+    "cloudy": WeatherCondition.CLOUDY,
+    "rain": WeatherCondition.RAINY,
+    "snow": WeatherCondition.SNOWY,
+    "storm": WeatherCondition.LIGHTNING,
+    "fog": WeatherCondition.FOG,
 }
 
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    coords = entry.data
-    coordinator = MeteoblueDataUpdateCoordinator(hass, coords)
+    coordinator = MeteoblueDataUpdateCoordinator(hass, entry.data)
     await coordinator.async_config_entry_first_refresh()
     async_add_entities([MeteoblueWeather(coordinator)], False)
 
-
-class MeteoblueDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, config):
-        super().__init__(
-            hass,
-            _LOGGER := hass.logger,
-            name=DOMAIN,
-            update_interval=timedelta(minutes=60),
-        )
-        self.api_key = config[CONF_API_KEY]
-        self.lat = config[CONF_LATITUDE]
-        self.lon = config[CONF_LONGITUDE]
-
-    async def _async_update_data(self):
-        url = f"https://my.meteoblue.com/packages/basic-1h?apikey={self.api_key}&lat={self.lat}&lon={self.lon}&format=json"
-        async with aiohttp.ClientSession() as session:
-            with async_timeout.timeout(15):
-                resp = await session.get(url)
-                resp.raise_for_status()
-                return await resp.json()
-
-
 class MeteoblueWeather(CoordinatorEntity, WeatherEntity):
+    _attr_supported_features = WeatherEntityFeature.FORECAST_DAILY
+
     def __init__(self, coordinator):
         super().__init__(coordinator)
         self._attr_name = "Meteoblue Weather"
-        self._attr_native_temperature_unit = TEMP_CELSIUS
-        self._attr_native_wind_speed_unit = SPEED_KILOMETERS_PER_HOUR
-        self._attr_native_visibility_unit = LENGTH_KILOMETERS
-
-    @property
-    def temperature(self):
-        return self._get("temperature", 0)
-
-    @property
-    def wind_speed(self):
-        return self._get("windspeed", 0)
+        self._attr_native_temperature_unit = UnitOfTemperature.CELSIUS
+        self._attr_native_wind_speed_unit = UnitOfSpeed.KILOMETERS_PER_HOUR
+        self._attr_native_visibility_unit = UnitOfLength.KILOMETERS
 
     @property
     def condition(self):
-        raw = self._get("weather", 0)
-        return CONDITION_MAP.get(raw, "unknown")
+        raw = self.coordinator.data["data"]["weather"]["value"][0]
+        return CONDITION_MAP.get(raw, WeatherCondition.UNKNOWN)
+
+    @property
+    def temperature(self):
+        return self.coordinator.data["data"]["temperature"]["value"][0]
+
+    @property
+    def wind_speed(self):
+        return self.coordinator.data["data"]["windspeed"]["value"][0]
 
     @property
     def humidity(self):
-        return self._get("relativehumidity", 0)
+        return self.coordinator.data["data"]["relativehumidity"]["value"][0]
 
     @property
     def forecast(self):
         data = self.coordinator.data["data"]
         times = data["temperature"]["value"]
-        weathers = data["weather"]["value"]
-        now = datetime.utcnow()
+        conds = data["weather"]["value"]
         return [
-            {"datetime": now + timedelta(
-                hours=i), "temperature": times[i], "condition": CONDITION_MAP.get(weathers[i], "unknown")}
-            for i in range(min(len(times), len(weathers)))
+            {"datetime": self.coordinator.data["metadata"]["modelrun_utc"], "temperature": times[i], "condition": CONDITION_MAP.get(conds[i], WeatherCondition.UNKNOWN)}
+            for i in range(min(len(times), len(conds)))
         ]
-
-    def _get(self, key, default):
-        return self.coordinator.data["data"].get(key, {}).get("value", [default])[0]
