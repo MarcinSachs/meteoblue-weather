@@ -1,0 +1,19 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Meteoblue Weather Setup",
+                "description": "Enter your API credentials and location.",
+                "data": {
+                    "api_key": "API Key",
+                    "latitude": "Latitude",
+                    "longitude": "Longitude"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to the API. Check your connection or data.",
+            "invalid_auth": "Invalid API key."
+        }
+    }
+}

@@ -1,89 +1,119 @@
-from homeassistant.components.weather import WeatherEntity
-from homeassistant.const import TEMP_CELSIUS, LENGTH_KILOMETERS, SPEED_KILOMETERS_PER_HOUR
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, CoordinatorEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-import aiohttp
-import async_timeout
-from datetime import timedelta, datetime
+"""Weather platform for Meteoblue."""
+from homeassistant.components.weather import (
+    ATTR_FORECAST_CONDITION,
+    ATTR_FORECAST_NATIVE_TEMP,
+    ATTR_FORECAST_NATIVE_TEMP_LOW,
+    ATTR_FORECAST_PRECIPITATION_PROBABILITY,
+    ATTR_FORECAST_TIME,
+    WeatherEntity,
+)
+from homeassistant.const import UnitOfSpeed, UnitOfTemperature
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
 
-from .const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE, DOMAIN
-
-CONDITION_MAP = {
-    "clear": "sunny",
-    "partly": "partlycloudy",
-    "cloudy": "cloudy",
-    "rain": "rainy",
-    "snow": "snowy",
-    "storm": "lightning",
-    "fog": "fog",
-}
+from .const import DOMAIN, PICTOCODE_CONDITION_MAP
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    coords = entry.data
-    coordinator = MeteoblueDataUpdateCoordinator(hass, coords)
-    await coordinator.async_config_entry_first_refresh()
-    async_add_entities([MeteoblueWeather(coordinator)], False)
-
-
-class MeteoblueDataUpdateCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, config):
-        super().__init__(
-            hass,
-            _LOGGER := hass.logger,
-            name=DOMAIN,
-            update_interval=timedelta(minutes=60),
-        )
-        self.api_key = config[CONF_API_KEY]
-        self.lat = config[CONF_LATITUDE]
-        self.lon = config[CONF_LONGITUDE]
-
-    async def _async_update_data(self):
-        url = f"https://my.meteoblue.com/packages/basic-1h?apikey={self.api_key}&lat={self.lat}&lon={self.lon}&format=json"
-        async with aiohttp.ClientSession() as session:
-            with async_timeout.timeout(15):
-                resp = await session.get(url)
-                resp.raise_for_status()
-                return await resp.json()
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Set up the Meteoblue weather platform."""
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([MeteoblueWeather(coordinator, entry.title)])
 
 
 class MeteoblueWeather(CoordinatorEntity, WeatherEntity):
-    def __init__(self, coordinator):
+    """Representation of a weather entity."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator, name):
+        """Initialize the Meteoblue weather entity."""
         super().__init__(coordinator)
-        self._attr_name = "Meteoblue Weather"
-        self._attr_native_temperature_unit = TEMP_CELSIUS
-        self._attr_native_wind_speed_unit = SPEED_KILOMETERS_PER_HOUR
-        self._attr_native_visibility_unit = LENGTH_KILOMETERS
-
-    @property
-    def temperature(self):
-        return self._get("temperature", 0)
-
-    @property
-    def wind_speed(self):
-        return self._get("windspeed", 0)
+        # The entity name will be "Weather". HA will combine it with the device name.
+        self._attr_name = "Weather"
+        self._attr_native_temperature_unit = UnitOfTemperature.CELSIUS
+        self._attr_native_wind_speed_unit = UnitOfSpeed.KILOMETERS_PER_HOUR
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, coordinator.config_entry.entry_id)},
+            name=name,
+            manufacturer="meteoblue",
+            model="API Forecast",
+        )
 
     @property
     def condition(self):
-        raw = self._get("weather", 0)
-        return CONDITION_MAP.get(raw, "unknown")
+        """Return the current condition."""
+        if not self.coordinator.data or "data_current" not in self.coordinator.data:
+            return None
+        pictocode = self.coordinator.data["data_current"].get("pictocode")
+        if pictocode is None:
+            return None
+        return PICTOCODE_CONDITION_MAP.get(pictocode, "sunny")
+
+    @property
+    def native_temperature(self):
+        """Return the temperature."""
+        if not self.coordinator.data or "data_current" not in self.coordinator.data:
+            return None
+        return self.coordinator.data["data_current"].get("temperature")
 
     @property
     def humidity(self):
-        return self._get("relativehumidity", 0)
+        """Return the humidity."""
+        if not self.coordinator.data or "data_current" not in self.coordinator.data:
+            return None
+        return self.coordinator.data["data_current"].get("relativehumidity")
+
+    @property
+    def native_wind_speed(self):
+        """Return the wind speed."""
+        if not self.coordinator.data or "data_current" not in self.coordinator.data:
+            return None
+        wind_speed_ms = self.coordinator.data["data_current"].get("windspeed")
+        if wind_speed_ms is None:
+            return None
+        # Convert from m/s to km/h
+        return round(wind_speed_ms * 3.6, 2)
 
     @property
     def forecast(self):
-        data = self.coordinator.data["data"]
-        times = data["temperature"]["value"]
-        weathers = data["weather"]["value"]
-        now = datetime.utcnow()
-        return [
-            {"datetime": now + timedelta(
-                hours=i), "temperature": times[i], "condition": CONDITION_MAP.get(weathers[i], "unknown")}
-            for i in range(min(len(times), len(weathers)))
-        ]
+        """Return the forecast array."""
+        if not self.coordinator.data or "data_day" not in self.coordinator.data:
+            return None
 
-    def _get(self, key, default):
-        return self.coordinator.data["data"].get(key, {}).get("value", [default])[0]
+        forecast_data = []
+        data_day = self.coordinator.data.get("data_day", {})
+
+        # Check if all required forecast keys exist and are lists
+        required_keys = [
+            "time",
+            "temperature_max",
+            "temperature_min",
+            "precipitation_probability",
+            "pictocode",
+        ]
+        if not all(isinstance(data_day.get(key), list) for key in required_keys):
+            return None
+
+        # Find the minimum length of the forecast lists to avoid IndexError
+        min_len = min(len(data_day.get(key, [])) for key in required_keys)
+
+        for i in range(min_len):
+            pictocode = data_day["pictocode"][i]
+            condition = PICTOCODE_CONDITION_MAP.get(pictocode, "sunny")
+
+            forecast_item = {
+                ATTR_FORECAST_TIME: data_day["time"][i] + "T12:00:00Z",
+                ATTR_FORECAST_NATIVE_TEMP: data_day["temperature_max"][i],
+                ATTR_FORECAST_NATIVE_TEMP_LOW: data_day["temperature_min"][i],
+                ATTR_FORECAST_PRECIPITATION_PROBABILITY: data_day["precipitation_probability"][i],
+                ATTR_FORECAST_CONDITION: condition,
+            }
+            forecast_data.append(forecast_item)
+
+        return forecast_data
+
+    @property
+    def attribution(self):
+        """Return the attribution."""
+        return "Powered by meteoblue"

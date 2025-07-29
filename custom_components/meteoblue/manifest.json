@@ -1,13 +1,10 @@
 {
   "domain": "meteoblue",
   "name": "Meteoblue Weather",
-  "version": "0.1.0",
-  "documentation": "https://github.com/MarcinSachs/meteoblue-weather",
-  "requirements": [
-    "aiohttp",
-    "async_timeout"
-  ],
-  "dependencies": [],
   "config_flow": true,
-  "iot_class": "cloud_polling"
+  "documentation": "https://www.meteoblue.com/pl/pogoda/api/technical-documentation",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/home-assistant/core/issues",
+  "version": "1.0.0",
+  "codeowners": []
 }

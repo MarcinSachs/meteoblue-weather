@@ -1,0 +1,19 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Konfiguracja Meteoblue Weather",
+                "description": "Wprowadź dane API oraz lokalizację.",
+                "data": {
+                    "api_key": "Klucz API",
+                    "latitude": "Szerokość geograficzna",
+                    "longitude": "Długość geograficzna"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Nie można połączyć się z API. Sprawdź połączenie lub dane.",
+            "invalid_auth": "Nieprawidłowy klucz API."
+        }
+    }
+}
