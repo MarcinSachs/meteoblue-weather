@@ -1,6 +1,7 @@
 {
   "domain": "meteoblue",
   "name": "Meteoblue Weather",
+<<<<<<< HEAD
   "config_flow": true,
   "documentation": "https://www.meteoblue.com/pl/pogoda/api/technical-documentation",
   "iot_class": "cloud_polling",
@@ -8,3 +9,12 @@
   "version": "1.0.0",
   "codeowners": []
 }
+=======
+  "version": "0.1.0",
+  "documentation": "https://github.com/MarcinSachs/meteoblue-weather",
+  "requirements": ["aiohttp", "async_timeout"],
+  "dependencies": [],
+  "config_flow": true,
+  "iot_class": "cloud_polling"
+}
+>>>>>>> c6ef35ccbca751e4de3d7f341fec45d568017de5
