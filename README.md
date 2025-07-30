@@ -1,6 +1,5 @@
 
 <div align="center">
-<img src="https://content.meteoblue.com/assets/images/testimonials/logo/meteoblue_logo_v2.0.svg" width="50%" height="50%" alt="Meteoblue Weather">
 
    <h1>Meteoblue Weather for Home Assistant</h1>
    
