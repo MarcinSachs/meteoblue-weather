@@ -5,6 +5,7 @@ DOMAIN = "meteoblue"
 CONF_API_KEY = "api_key"
 CONF_LATITUDE = "latitude"
 CONF_LONGITUDE = "longitude"
+<<<<<<< HEAD
 
 DEFAULT_NAME = "Meteoblue"
 
@@ -40,3 +41,7 @@ PICTOCODE_CONDITION_MAP = {
     27: "snowy-rainy",
 }
 
+=======
+CONF_SHARED_SECRET = "shared_secret"
+CONF_NAME = "name"
+>>>>>>> e6664fb28e7788ca18ab812507be815c8f51dbcb
